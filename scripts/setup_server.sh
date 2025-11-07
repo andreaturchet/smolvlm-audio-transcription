@@ -4,6 +4,8 @@ MODEL_DIR="./models/vosk-model-en-us-0.42-gigaspeech"
 LLAMA_DIR="./build/bin/llama-server"
 cd $PROJECT_DIR
 
+trap "kill 0" EXIT
+
 # Check for diagnostics flag
 if [ "$1" == "--diagnostics" ]; then
     echo "=========================================="
@@ -52,7 +54,7 @@ echo '========================================'
 echo 'VLM SERVER (Port 8080)'
 echo '========================================'
 echo ''
-./build/bin/llama-server -hf Qwen/Qwen3-VL-2B-Instruct-GGUF:Q4_K_M --host 0.0.0.0 &
+./build/bin/llama-server -hf Qwen/Qwen3-VL-2B-Instruct-GGUF:Q4_K_M --host 0.0.0.0 2>/dev/null 1>/dev/null &
 sleep 5
 
 echo "=========================================="
@@ -66,7 +68,7 @@ echo '========================================'
 echo 'PDF SERVER (Port 9002)'
 echo '========================================'
 echo ''
-python src/presenter/pdf_server.py $1 &
+python src/presenter/pdf_server.py $1 1>/dev/null &
 sleep 2
 
 # Orchestrator
@@ -84,7 +86,7 @@ echo '========================================'
 echo 'AUDIO SERVER (Port 2700)'
 echo '========================================'
 echo ''
-python src/audio/audio.py models/vosk-model-en-us-0.42-gigaspeech $1 &
+python src/audio/audio.py models/vosk-model-en-us-0.42-gigaspeech $1 1>/dev/null &
 sleep 2
 
 # Gesture Server
@@ -93,7 +95,7 @@ echo '========================================'
 echo 'GESTURE SERVER (Port 9003)'
 echo '========================================'
 echo ''
-python gestures/gesture_server.py &
+python gestures/gesture_server.py 1>/dev/null &
 sleep 2
 
 # Open the main interface
@@ -103,3 +105,4 @@ open web/unified_interface.html
 echo "=========================================="
 echo "All systems are go!"
 echo "=========================================="
+wait

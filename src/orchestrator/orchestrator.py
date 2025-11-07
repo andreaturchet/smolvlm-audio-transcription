@@ -67,7 +67,19 @@ class OrchestratorAgent:
                     'action': 'ZOOM_ON_OBJECT',
                     'params': {'target': 'bottle'}
                 },
-            ]
+            ],
+            'gesture': [
+                {
+                    'trigger': 'next',
+                    'action': 'NEXT_SLIDE',
+                    'params': {}
+                },
+                {
+                    'trigger': 'previous',
+                    'action': 'PREVIOUS_SLIDE',
+                    'params': {}
+                },
+            ],
         }
 
     def _clean_old_phrases(self):
@@ -114,6 +126,7 @@ class OrchestratorAgent:
         """
         source = data.get('source')
         content = data.get('content', '').strip()
+        print(f"{source=} {content=}")
 
         if not source or not content:
             return
@@ -175,29 +188,6 @@ class OrchestratorAgent:
         # Send command to PDF server if it's a slide action
         if action in ['OPEN_PRESENTATION', 'NEXT_SLIDE', 'PREVIOUS_SLIDE', 'GO_TO_SLIDE']:
             await send_to_pdf_server(action, params)
-
-    def _delegate_action(self, source: str, action: str, params: Dict, content: str):
-        """
-        Delegate actions to executive agents.
-        Now actually sends commands to PDF server.
-        DEPRECATED - use _delegate_action_async instead
-        """
-        print("\n" + "="*60)
-        print(f"ORCHESTRATOR: Intent recognized from '{source}'")
-        print(f"ORCHESTRATOR: Trigger content: {content[:50]}...")
-
-        if params:
-            param_str = ', '.join([f"{k}='{v}'" for k, v in params.items()])
-            print(f"ORCHESTRATOR: Delegating command: {action}({param_str})")
-        else:
-            print(f"ORCHESTRATOR: Delegating command: {action}")
-
-        print("="*60 + "\n")
-
-        # Send command to PDF server if it's a slide action
-        if action in ['OPEN_PRESENTATION', 'NEXT_SLIDE', 'PREVIOUS_SLIDE', 'GO_TO_SLIDE']:
-            asyncio.create_task(send_to_pdf_server(action, params))
-
 
 async def send_to_pdf_server(action: str, params: Dict):
     """Send command to PDF server"""

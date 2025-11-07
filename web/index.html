@@ -626,6 +626,124 @@
     </div>
 
     <script>
+        // Auto-connect gesture on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('Auto-connecting gesture...');
+            connectGesture();
+        });
+        let gestureVideoStream = null;
+        let gestureCanvas = null;
+        let gestureContext = null;
+        let gestureCaptureInterval = null;
+
+        async function connectGesture() {
+            const gestureUrl = document.getElementById('gestureServerUrl').value;
+
+            try {
+                // Request camera access
+                gestureVideoStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+
+                // Create hidden canvas
+                if (!gestureCanvas) {
+                    gestureCanvas = document.createElement('canvas');
+                    gestureCanvas.width = 1280;
+                    gestureCanvas.height = 720;
+                    gestureContext = gestureCanvas.getContext('2d');
+                }
+
+                // Create hidden video element
+                const videoElement = document.createElement('video');
+                videoElement.srcObject = gestureVideoStream;
+                videoElement.play();
+
+                gestureSocket = new WebSocket(gestureUrl);
+
+                gestureSocket.onopen = () => {
+                    document.getElementById('gestureStatus').textContent = 'Gesture Connected';
+                    document.getElementById('gestureStatus').style.color = '#4CAF50';
+                    console.log('Gesture WebSocket connected');
+
+                    // Start sending frames
+                    gestureCaptureInterval = setInterval(() => {
+                        if (gestureSocket.readyState === WebSocket.OPEN) {
+                            gestureContext.save();
+                            gestureContext.scale(-1, 1);
+                            gestureContext.drawImage(videoElement, -gestureCanvas.width, 0, gestureCanvas.width, gestureCanvas.height);
+                            gestureContext.restore();
+
+                            gestureCanvas.toBlob((blob) => {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                    const base64data = reader.result.split(',')[1];
+                                    gestureSocket.send(JSON.stringify({
+                                        type: 'frame',
+                                        image: base64data
+                                    }));
+                                };
+                                reader.readAsDataURL(blob);
+                            }, 'image/jpeg', 0.8);
+                        }
+                    }, 50);
+                };
+
+                gestureSocket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    console.log(data);
+                    if (data.type === 'gesture') {
+                        document.getElementById('gestureDisplay').textContent = `Gesture: ${data.action}`;
+                        console.log('Gesture received:', data.action);
+
+                        if (data.action === 'next') {
+                            nextPage();
+                        } else if (data.action === 'previous') {
+                            previousPage();
+                        }
+                    }
+                };
+
+                gestureSocket.onerror = (error) => {
+                    console.error('Gesture WebSocket error:', error);
+                    document.getElementById('gestureStatus').textContent = 'Gesture Error';
+                    document.getElementById('gestureStatus').style.color = '#f44336';
+                    cleanupGestureStream();
+                };
+
+                gestureSocket.onclose = () => {
+                    console.log('Gesture WebSocket closed');
+                    document.getElementById('gestureStatus').textContent = 'Gesture Disconnected';
+                    document.getElementById('gestureStatus').style.color = '#f44336';
+                    cleanupGestureStream();
+                };
+
+            } catch (error) {
+                console.error('Error accessing camera for gestures:', error);
+                alert('Could not access camera for gesture recognition: ' + error.message);
+            }
+        }
+
+        function cleanupGestureStream() {
+            if (gestureCaptureInterval) {
+                clearInterval(gestureCaptureInterval);
+                gestureCaptureInterval = null;
+            }
+            if (gestureVideoStream) {
+                gestureVideoStream.getTracks().forEach(track => track.stop());
+                gestureVideoStream = null;
+            }
+        }
+
+        function disconnectGesture() {
+            cleanupGestureStream();
+            if (gestureSocket) {
+                gestureSocket.close();
+                gestureSocket = null;
+            }
+        }
 
         // Function to reload page with new interval
         function reloadWithInterval(intervalValue) {
@@ -832,7 +950,7 @@
 
                     updatePageInfo();
                     updateNavigationButtons();
-                } 
+                }
                 else if (data.type === 'no_pdf') {
                     document.getElementById('loadingMessage').textContent = data.message;
                     document.getElementById('loadingMessage').style.display = 'block';

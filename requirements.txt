@@ -1,7 +1,7 @@
 torch
 pyaudio
-numpy>=1.23.5
-websockets
+numpy
+websockets==11.0.3
 PyMuPDF
 Pillow
 vosk
